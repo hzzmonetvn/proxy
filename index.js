@@ -18,23 +18,28 @@ async function handleRequest(request) {
       headers: { 'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0' }
     })
 
-    // Lấy tên file từ header gốc hoặc dùng tạm tên mặc định
     let fileName = 'downloaded_file';
     const disposition = response.headers.get('Content-Disposition');
     if (disposition && disposition.includes('filename=')) {
-      fileName = disposition.split('filename=')[1].replace(/"/g, '');
+      fileName = disposition.split('filename=')[1].replace(/['"]/g, '').split(';')[0];
+    } else {
+      const urlObj = new URL(targetUrl);
+      const parts = urlObj.pathname.split('/');
+      const last = parts[parts.length - 1];
+      if (last && last.includes('.')) fileName = last;
+      else fileName = (urlObj.searchParams.get('file') || urlObj.searchParams.get('name') || 'downloaded_file');
     }
 
     return new Response(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
         'Access-Control-Allow-Origin': '*'
       }
     })
   } catch (err) {
-    return new Response('Lỗi khi tải file: ' + err.message, { status: 502 })
+    return new Response('Lỗi: ' + err.message, { status: 502 })
   }
 }
 
